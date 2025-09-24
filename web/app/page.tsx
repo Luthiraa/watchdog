@@ -2,19 +2,99 @@
 
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function WatchdogHero() {
   const [input, setInput] = useState("")
+  const [memories, setMemories] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect to signin if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+    }
+  }, [status, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("User prompt:", input)
+    if (!input.trim()) return
+
+    setIsLoading(true)
+    try {
+      // Store the user's query as a memory
+      await fetch('/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: input,
+          category: 'query',
+          source: 'chat'
+        })
+      })
+
+      // Search for relevant memories
+      const response = await fetch(`/api/memories?q=${encodeURIComponent(input)}`)
+      const data = await response.json()
+      setMemories(data.memories || [])
+
+      console.log("User prompt:", input)
+      console.log("Found memories:", data.memories)
+    } catch (error) {
+      console.error('Error processing query:', error)
+    }
+    
     setInput("")
+    setIsLoading(false)
+  }
+
+  const handleQuickAction = async (action: string) => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/memories?q=${encodeURIComponent(action.toLowerCase())}&category=${action.toLowerCase().replace(' ', '')}`)
+      const data = await response.json()
+      setMemories(data.memories || [])
+    } catch (error) {
+      console.error('Error fetching memories:', error)
+    }
+    setIsLoading(false)
+  }
+
+  // Show loading screen while checking authentication
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4">
+        <div className="text-white pixel-regular">Loading...</div>
+      </main>
+    )
+  }
+
+  // Don't render main content if not authenticated
+  if (!session) {
+    return null
   }
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4">
+      {/* User menu */}
+      <div className="absolute top-4 right-4 z-20">
+        <div className="flex items-center gap-3 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl px-4 py-2">
+          <span className="text-white/70 text-xs pixel-light">
+            {session.user?.email}
+          </span>
+          <button
+            onClick={() => signOut()}
+            className="text-white/50 hover:text-white/80 text-xs pixel-light transition"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+
       {/* Subtle accent gradients */}
       <div className="absolute inset-0">
         <div className="absolute -top-40 -left-40 w-[50vw] h-[50vw] bg-gradient-to-br from-indigo-600/10 to-purple-800/5 rounded-full blur-3xl animate-pulse" />
@@ -109,12 +189,67 @@ export default function WatchdogHero() {
         {/* Quick actions */}
         <div className="flex flex-wrap justify-center gap-2 mt-5">
           {["Search Docs", "Summarize Notes", "Track Tasks", "Retrieve Papers"].map((label) => (
-            <button key={label} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md text-xs text-white/70 hover:text-white transition pixel-bold">
+            <button 
+              key={label} 
+              onClick={() => handleQuickAction(label)}
+              disabled={isLoading}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md text-xs text-white/70 hover:text-white transition pixel-bold disabled:opacity-50"
+            >
               {label}
             </button>
           ))}
         </div>
       </motion.div>
+
+      {/* Memory results */}
+      {memories.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.8 }}
+          className="relative z-10 w-full max-w-4xl mt-8"
+        >
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/10">
+              <h3 className="text-white pixel-bold text-sm">Found Memories ({memories.length})</h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {memories.map((memory, index) => (
+                <div key={memory.id} className="px-6 py-4 border-b border-white/5 last:border-b-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-white/90 text-xs pixel-light leading-relaxed">
+                        {memory.content}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-white/40 text-xs pixel-light">
+                          {memory.category}
+                        </span>
+                        <span className="text-white/30 text-xs pixel-light">
+                          {new Date(memory.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Loading indicator */}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50"
+        >
+          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl px-6 py-4">
+            <div className="text-white pixel-light text-sm">Processing...</div>
+          </div>
+        </motion.div>
+      )}
     </main>
   )
 }

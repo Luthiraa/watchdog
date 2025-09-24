@@ -1,21 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
-import { Instrument_Serif } from "next/font/google"
 import "./globals.css"
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  variable: "--font-instrument-serif",
-})
+import { Providers } from "./providers"
 
 export const metadata: Metadata = {
-  title: "Heritage Roots - American Farming Newsletter",
-  description: "Restoring heritage American farming traditions through stories, wisdom, and community.",
-  generator: "v0.app",
+  title: "Watchdog - Memory Agent",
+  description: "Eyes everywhere. Memory for everything. Secure personal AI memory system.",
 }
 
 export default function RootLayout({
@@ -25,17 +15,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-  --font-instrument-serif: ${instrumentSerif.variable};
-}
-        `}</style>
-      </head>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable}`}>{children}</body>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   )
 }

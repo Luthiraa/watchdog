@@ -17,32 +17,81 @@ body {
   min-height: 100vh;
 }
 
-/* Noise overlay */
+/* Pixelated security grid overlay */
 body::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: url("https://grainy-gradients.vercel.app/noise.svg");
-  opacity: 0.05;
+  background: 
+    /* Circuit board pattern */
+    linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    /* Security grid */
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 19px,
+      rgba(0, 255, 65, 0.05) 20px,
+      rgba(0, 255, 65, 0.05) 21px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 19px,
+      rgba(0, 255, 65, 0.05) 20px,
+      rgba(0, 255, 65, 0.05) 21px
+    );
+  background-size: 20px 20px, 20px 20px, 20px 20px, 20px 20px;
+  image-rendering: pixelated;
+  opacity: 0.6;
   pointer-events: none;
   z-index: 0;
+  animation: securityScan 8s linear infinite;
 }
 
-/* Scanline overlay */
+/* Security scanning animation */
+@keyframes securityScan {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 20px 20px, -20px -20px, 0 0, 0 0; }
+}
+
+/* Pixelated binary rain overlay */
 body::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.02) 1px,
-    transparent 2px,
-    transparent 4px
-  );
-  mix-blend-mode: overlay;
+  background: 
+    /* Binary code pattern */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 7px,
+      rgba(0, 255, 65, 0.02) 8px,
+      rgba(0, 255, 65, 0.02) 9px,
+      transparent 10px,
+      transparent 15px,
+      rgba(0, 255, 65, 0.015) 16px,
+      rgba(0, 255, 65, 0.015) 17px
+    ),
+    /* Vertical security lines */
+    repeating-linear-gradient(
+      to right,
+      transparent 0px,
+      transparent 39px,
+      rgba(0, 255, 130, 0.02) 40px,
+      rgba(0, 255, 130, 0.02) 41px
+    );
+  background-size: 100% 18px, 40px 100%;
+  image-rendering: pixelated;
+  mix-blend-mode: screen;
   pointer-events: none;
   z-index: 0;
+  animation: binaryRain 12s linear infinite;
+}
+
+@keyframes binaryRain {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 0 18px, 40px 0; }
 }
 /* Pixel fonts with different weights */
 .pixel-light {
