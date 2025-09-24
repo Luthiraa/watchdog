@@ -1,67 +1,103 @@
-// Memory Agent Popup JavaScript
-console.log('Memory Agent popup loaded');
+// Watchdog Memory Agent - Extension Popup JavaScript
+console.log('Watchdog Memory Agent popup loaded');
 
-class MemoryAgentPopup {
+class WatchdogPopup {
     constructor() {
-        this.searchInput = document.getElementById('searchInput');
-        this.searchButton = document.getElementById('searchButton');
-        this.resultsContainer = document.getElementById('results');
-        this.loadingIndicator = document.getElementById('loadingIndicator');
-        this.emptyState = document.getElementById('emptyState');
-        this.pageCountElement = document.getElementById('pageCount');
-        this.lastUpdateElement = document.getElementById('lastUpdate');
+        this.ctaButton = document.getElementById('openConsole');
+        this.sessionCountElement = document.getElementById('sessionCount');
+        this.memoryCountElement = document.getElementById('memoryCount');
+        this.lastActiveElement = document.getElementById('lastActive');
+        this.statusElement = document.getElementById('systemStatus');
+        this.loadingIndicator = document.getElementById('loading');
         
         this.initializeEventListeners();
-        this.loadStats();
+        this.updateStatus();
+        this.loadMemoryStats();
     }
 
     initializeEventListeners() {
-        // Search functionality
-        this.searchButton.addEventListener('click', () => this.performSearch());
-        this.searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.performSearch();
-            }
-        });
+        // Main CTA button to open web console
+        this.ctaButton.addEventListener('click', () => this.openWebConsole());
 
-        // Quick action buttons
-        document.querySelectorAll('.quick-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const query = e.target.getAttribute('data-query');
-                this.searchInput.value = query;
-                this.performSearch();
-            });
-        });
+        // Secondary action buttons
+        const settingsBtn = document.getElementById('settings');
+        const syncBtn = document.getElementById('sync');
 
-        // Footer buttons
-        document.getElementById('clearData').addEventListener('click', () => this.clearAllData());
-        document.getElementById('exportData').addEventListener('click', () => this.exportData());
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => this.openSettings());
+        }
 
-        // Focus search input on load
-        this.searchInput.focus();
+        if (syncBtn) {
+            syncBtn.addEventListener('click', () => this.syncMemories());
+        }
     }
 
-    async performSearch() {
-        const query = this.searchInput.value.trim();
-        if (!query) return;
+    openWebConsole() {
+        console.log('Opening Watchdog web console...');
+        
+        // Show loading state
+        this.showLoading();
+        
+        // Open the Watchdog web application
+        chrome.tabs.create({ 
+            url: 'http://localhost:3000',
+            active: true 
+        }, (tab) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error opening web console:', chrome.runtime.lastError);
+                this.hideLoading();
+                return;
+            }
+            
+            console.log('Watchdog web console opened in tab:', tab.id);
+            
+            // Close the popup after a brief delay
+            setTimeout(() => {
+                window.close();
+            }, 500);
+        });
+    }
 
+    openSettings() {
+        console.log('Opening Watchdog settings...');
+        // For now, open the web console to the settings page
+        chrome.tabs.create({ 
+            url: 'http://localhost:3000#settings',
+            active: true 
+        });
+        window.close();
+    }
+
+    async syncMemories() {
+        console.log('Syncing memories with Watchdog...');
+        
         this.showLoading();
         
         try {
+            // Get stored data from extension
+            const result = await chrome.storage.local.get(['memory_agent_vectors', 'memory_agent_events']);
+            
+            // Send sync message to background script
             const response = await this.sendMessageToBackground({
-                type: 'search',
-                query: query,
-                limit: 10
+                type: 'sync_memories',
+                data: {
+                    vectors: result.memory_agent_vectors || [],
+                    events: result.memory_agent_events || []
+                }
             });
 
+            this.hideLoading();
+
             if (response.success) {
-                this.displayResults(response.results, query);
+                console.log('Memories synced successfully');
+                this.updateStatus();
+                this.loadMemoryStats();
             } else {
-                this.showError('Search failed: ' + response.error);
+                console.error('Sync failed:', response.error);
             }
         } catch (error) {
-            console.error('Search error:', error);
-            this.showError('Search failed. Please try again.');
+            console.error('Sync error:', error);
+            this.hideLoading();
         }
     }
 
@@ -81,186 +117,81 @@ class MemoryAgentPopup {
     }
 
     showLoading() {
-        this.loadingIndicator.classList.remove('hidden');
-        this.resultsContainer.innerHTML = '';
-        this.emptyState.classList.add('hidden');
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.add('active');
+        }
     }
 
     hideLoading() {
-        this.loadingIndicator.classList.add('hidden');
-    }
-
-    displayResults(results, query) {
-        this.hideLoading();
-        
-        if (results.length === 0) {
-            this.showNoResults(query);
-            return;
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.remove('active');
         }
-
-        this.emptyState.classList.add('hidden');
-        this.resultsContainer.innerHTML = '';
-
-        results.forEach(result => {
-            const resultElement = this.createResultElement(result);
-            this.resultsContainer.appendChild(resultElement);
-        });
     }
 
-    createResultElement(result) {
-        const resultDiv = document.createElement('div');
-        resultDiv.className = 'result-item';
+    updateStatus() {
+        // Update system status indicator
+        if (this.statusElement) {
+            this.statusElement.textContent = 'ONLINE';
+        }
         
-        const title = result.metadata?.title || 'Untitled Page';
-        const url = result.metadata?.url || '#';
-        const snippet = this.highlightQuery(result.content, this.searchInput.value);
-        const similarity = (result.similarity * 100).toFixed(1);
-        const timeAgo = this.formatTimeAgo(result.timestamp);
-
-        resultDiv.innerHTML = `
-            <div class="result-title">${this.escapeHtml(title)}</div>
-            <div class="result-url">${this.truncateUrl(url)}</div>
-            <div class="result-snippet">${snippet}</div>
-            <div class="result-meta">
-                <span class="similarity-score">${similarity}% match</span>
-                <span class="result-time">${timeAgo}</span>
-            </div>
-        `;
-
-        resultDiv.addEventListener('click', () => {
-            chrome.tabs.create({ url: url });
-            window.close();
-        });
-
-        return resultDiv;
+        // Update last active time
+        if (this.lastActiveElement) {
+            this.lastActiveElement.textContent = this.formatTimeAgo(Date.now());
+        }
     }
 
-    highlightQuery(text, query) {
-        if (!query) return this.escapeHtml(text.slice(0, 150)) + '...';
-        
-        const words = query.toLowerCase().split(/\s+/);
-        let highlightedText = this.escapeHtml(text);
-        
-        words.forEach(word => {
-            if (word.length > 2) {
-                const regex = new RegExp(`\\b${this.escapeRegex(word)}\\b`, 'gi');
-                highlightedText = highlightedText.replace(regex, `<mark>$&</mark>`);
-            }
-        });
-        
-        return highlightedText.slice(0, 200) + '...';
-    }
-
-    showNoResults(query) {
-        this.emptyState.innerHTML = `
-            <div class="empty-icon">🤔</div>
-            <h3>No results found</h3>
-            <p>I couldn't find anything matching "${this.escapeHtml(query)}" in your browsing history. Try a different search term or browse more pages to build your memory.</p>
-        `;
-        this.emptyState.classList.remove('hidden');
-    }
-
-    showError(message) {
-        this.hideLoading();
-        this.emptyState.innerHTML = `
-            <div class="empty-icon">⚠️</div>
-            <h3>Search Error</h3>
-            <p>${this.escapeHtml(message)}</p>
-        `;
-        this.emptyState.classList.remove('hidden');
-    }
-
-    async loadStats() {
+    async loadMemoryStats() {
         try {
             // Get vector storage stats
-            const vectorResult = await chrome.storage.local.get(['memory_agent_vectors']);
+            const vectorResult = await chrome.storage.local.get(['memory_agent_vectors', 'memory_agent_events']);
             const vectors = vectorResult.memory_agent_vectors || [];
+            const events = vectorResult.memory_agent_events || [];
             
-            this.pageCountElement.textContent = vectors.length;
-            
-            // Get last update time
-            if (vectors.length > 0) {
-                const lastTimestamp = Math.max(...vectors.map(v => v.timestamp));
-                this.lastUpdateElement.textContent = this.formatTimeAgo(lastTimestamp);
-            } else {
-                this.lastUpdateElement.textContent = 'Never';
-            }
-        } catch (error) {
-            console.error('Error loading stats:', error);
-        }
-    }
-
-    async clearAllData() {
-        if (confirm('Are you sure you want to clear all stored memory data? This action cannot be undone.')) {
-            try {
-                await chrome.storage.local.clear();
-                this.loadStats();
-                this.resultsContainer.innerHTML = '';
-                this.emptyState.classList.remove('hidden');
-                this.emptyState.innerHTML = `
-                    <div class="empty-icon">✅</div>
-                    <h3>Data Cleared</h3>
-                    <p>All memory data has been successfully cleared.</p>
-                `;
-                console.log('All data cleared');
-            } catch (error) {
-                console.error('Error clearing data:', error);
-                alert('Failed to clear data. Please try again.');
-            }
-        }
-    }
-
-    async exportData() {
-        try {
-            const result = await chrome.storage.local.get(['memory_agent_vectors', 'memory_agent_events']);
-            const data = {
-                vectors: result.memory_agent_vectors || [],
-                events: result.memory_agent_events || [],
-                exportDate: new Date().toISOString(),
-                version: '1.0'
-            };
-
-            const blob = new Blob([JSON.stringify(data, null, 2)], {
-                type: 'application/json'
+            // Update session count (unique domains)
+            const uniqueDomains = new Set();
+            vectors.forEach(vector => {
+                if (vector.metadata?.url) {
+                    try {
+                        const domain = new URL(vector.metadata.url).hostname;
+                        uniqueDomains.add(domain);
+                    } catch (e) {
+                        // Invalid URL, skip
+                    }
+                }
             });
-            
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `memory-agent-export-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            console.log('Data exported successfully');
+
+            if (this.sessionCountElement) {
+                this.sessionCountElement.textContent = uniqueDomains.size.toString();
+            }
+
+            // Update memory count
+            if (this.memoryCountElement) {
+                this.memoryCountElement.textContent = vectors.length.toString();
+            }
+
+            console.log(`Loaded stats: ${uniqueDomains.size} sessions, ${vectors.length} memories`);
         } catch (error) {
-            console.error('Error exporting data:', error);
-            alert('Failed to export data. Please try again.');
+            console.error('Error loading memory stats:', error);
         }
     }
 
     // Utility functions
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    formatTimeAgo(timestamp) {
+        const now = Date.now();
+        const diff = now - timestamp;
+        
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'Just now';
     }
 
-    escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    truncateUrl(url) {
-        if (url.length <= 50) return url;
-        try {
-            const urlObj = new URL(url);
-            return urlObj.hostname + (urlObj.pathname.length > 20 ? urlObj.pathname.slice(0, 20) + '...' : urlObj.pathname);
-        } catch {
-            return url.slice(0, 50) + '...';
-        }
-    }
-
+    // Utility functions
     formatTimeAgo(timestamp) {
         const now = Date.now();
         const diff = now - timestamp;
@@ -279,5 +210,6 @@ class MemoryAgentPopup {
 
 // Initialize the popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new MemoryAgentPopup();
+    console.log('DOM loaded, initializing Watchdog popup...');
+    new WatchdogPopup();
 });
