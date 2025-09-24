@@ -1,0 +1,91 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Orbitron:wght@400;700;900&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px;
+  line-height: 1.6;
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Noise overlay */
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scanline overlay */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 0;
+}
+/* Pixel fonts with different weights */
+.pixel-light {
+  font-family: 'Silkscreen', cursive;
+  font-weight: 400;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+.pixel-regular {
+  font-family: 'Press Start 2P', cursive;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
+}
+
+.pixel-bold {
+  font-family: 'Silkscreen', cursive;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+}
+
+.pixel-heavy {
+  font-family: 'Orbitron', cursive;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.05em;
+}
+
+/* Main title */
+.pixel-title {
+  font-family: 'Press Start 2P', cursive;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+}
+
+/* Pixelated images */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* Slow pan bg */
+@keyframes slowPan {
+  0% { transform: translate(0, 0) scale(1.05); }
+  50% { transform: translate(-2%, -1%) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1.05); }
+}
+.animate-slow-pan {
+  animation: slowPan 40s ease-in-out infinite;
+}
