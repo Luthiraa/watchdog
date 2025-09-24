@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "init-weaviate": "tsx scripts/init-weaviate.ts"
+    "init-weaviate": "tsx scripts/init-weaviate.ts",
+    "query-users": "tsx scripts/query-users.ts",
+    "status": "tsx scripts/check-status.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

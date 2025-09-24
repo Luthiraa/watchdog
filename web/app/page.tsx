@@ -20,6 +20,47 @@ export default function WatchdogHero() {
     }
   }, [status, router])
 
+  // Track login events when session becomes available
+  useEffect(() => {
+    if (session?.user?.email && status === "authenticated") {
+      // Store login event
+      const storeLoginEvent = async () => {
+        try {
+          const user = session.user
+          if (!user?.email) return
+
+          const response = await fetch('/api/memories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: `User logged in: ${user.name || 'Unknown'} (${user.email})`,
+              category: 'authentication',
+              source: 'client_login_tracking',
+              metadata: {
+                userName: user.name || 'Unknown',
+                userEmail: user.email,
+                userImage: user.image || null,
+                loginTime: new Date().toISOString(),
+              }
+            })
+          })
+          
+          if (response.ok) {
+            console.log('✅ Login event stored successfully via client')
+          } else {
+            console.error('❌ Failed to store login event via client')
+          }
+        } catch (error) {
+          console.error('❌ Error storing login event:', error)
+        }
+      }
+
+      // Use a slight delay to ensure we don't store multiple times
+      const timeoutId = setTimeout(storeLoginEvent, 1000)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [session, status])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
@@ -198,6 +239,29 @@ export default function WatchdogHero() {
               {label}
             </button>
           ))}
+          
+          {/* Debug button */}
+          {/* <button 
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/debug/login', { method: 'POST' })
+                const data = await response.json()
+                console.log('Debug response:', data)
+                if (data.success) {
+                  alert(`✅ Login event stored! Memory ID: ${data.memoryId}`)
+                } else {
+                  alert(`❌ Error: ${data.error}`)
+                }
+              } catch (error) {
+                console.error('Debug error:', error)
+                alert('❌ Debug request failed')
+              }
+            }}
+            disabled={isLoading}
+            className="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 backdrop-blur-md text-xs text-red-300 hover:text-red-200 transition pixel-bold disabled:opacity-50"
+          >
+            🐛 Test Login Storage
+          </button> */}
         </div>
       </motion.div>
 

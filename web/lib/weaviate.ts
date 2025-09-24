@@ -105,7 +105,7 @@ export class WeaviateService {
           timestamp: memory.timestamp,
           category: memory.category || 'general',
           source: memory.source || 'manual',
-          metadata: memory.metadata || {},
+          metadata: memory.metadata ? JSON.stringify(memory.metadata) : '{}',
         })
         .do();
 
@@ -160,7 +160,7 @@ export class WeaviateService {
         timestamp: item.timestamp,
         category: item.category,
         source: item.source,
-        metadata: item.metadata,
+        metadata: item.metadata ? JSON.parse(item.metadata) : {},
       }));
     } catch (error) {
       console.error('Error searching memories:', error);
@@ -210,7 +210,7 @@ export class WeaviateService {
         timestamp: item.timestamp,
         category: item.category,
         source: item.source,
-        metadata: item.metadata,
+        metadata: item.metadata ? JSON.parse(item.metadata) : {},
       }));
     } catch (error) {
       console.error('Error getting user memories:', error);
