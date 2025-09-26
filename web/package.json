@@ -9,7 +9,8 @@
     "lint": "next lint",
     "init-weaviate": "tsx scripts/init-weaviate.ts",
     "query-users": "tsx scripts/query-users.ts",
-    "status": "tsx scripts/check-status.ts"
+    "status": "tsx scripts/check-status.ts",
+    "cleanup-logins": "tsx scripts/cleanup-logins.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

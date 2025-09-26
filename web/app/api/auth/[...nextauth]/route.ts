@@ -1,8 +1,8 @@
-import NextAuth from "next-auth"
+import NextAuth, { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { weaviateService } from "@/lib/weaviate"
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -20,65 +20,39 @@ const handler = NextAuth({
         userName: user.name 
       })
       
-      // Store login event in Weaviate when user successfully signs in
+      // Use smart session management instead of creating duplicate records
       try {
         if (user.email && account?.provider) {
-          console.log('📝 Attempting to store login event in Weaviate...')
+          console.log('📝 Updating or creating login session in Weaviate...')
           
-          const memoryId = await weaviateService.storeMemory({
-            userId: user.email,
-            content: `User logged in via ${account.provider}. Name: ${user.name}, Email: ${user.email}`,
-            timestamp: new Date().toISOString(),
-            category: 'authentication',
-            source: 'oauth_login',
-            metadata: {
-              provider: account.provider,
-              userName: user.name,
-              userImage: user.image,
-              loginTime: new Date().toISOString(),
-            },
+          const sessionId = await weaviateService.updateOrCreateLoginSession(user.email, {
+            provider: account.provider,
+            userName: user.name,
+            userImage: user.image,
+            email: user.email,
           })
           
-          console.log(`✅ Login event stored successfully! Memory ID: ${memoryId} for user: ${user.email}`)
+          // Cleanup old login records to prevent accumulation
+          await weaviateService.cleanupOldLoginRecords(user.email)
+          
+          console.log(`✅ Login session managed successfully! Session ID: ${sessionId} for user: ${user.email}`)
         } else {
           console.log('⚠️ Missing user email or account provider, skipping storage')
         }
       } catch (error) {
-        console.error('❌ Failed to store login event:', error)
+        console.error('❌ Failed to manage login session:', error)
         // Don't prevent login if storage fails
       }
       return true
     },
     async session({ session, token }) {
-      // Also try to store login event here as a backup
-      if (session?.user?.email && !token.loginEventStored) {
-        try {
-          console.log('📝 Storing login event from session callback...')
-          await weaviateService.storeMemory({
-            userId: session.user.email,
-            content: `User session created. Name: ${session.user.name}, Email: ${session.user.email}`,
-            timestamp: new Date().toISOString(),
-            category: 'authentication',
-            source: 'session_creation',
-            metadata: {
-              userName: session.user.name,
-              userImage: session.user.image,
-              sessionTime: new Date().toISOString(),
-            },
-          })
-          // Mark that we've stored the login event for this token
-          token.loginEventStored = true
-          console.log(`✅ Session login event stored for user: ${session.user.email}`)
-        } catch (error) {
-          console.error('❌ Failed to store session login event:', error)
-        }
-      }
       return session
     },
     async jwt({ token, user }) {
       return token
     },
   },
-})
+}
 
+const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }

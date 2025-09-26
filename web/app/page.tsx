@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 
 export default function WatchdogHero() {
   const [input, setInput] = useState("")
-  const [memories, setMemories] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -20,54 +19,14 @@ export default function WatchdogHero() {
     }
   }, [status, router])
 
-  // Track login events when session becomes available
-  useEffect(() => {
-    if (session?.user?.email && status === "authenticated") {
-      // Store login event
-      const storeLoginEvent = async () => {
-        try {
-          const user = session.user
-          if (!user?.email) return
-
-          const response = await fetch('/api/memories', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content: `User logged in: ${user.name || 'Unknown'} (${user.email})`,
-              category: 'authentication',
-              source: 'client_login_tracking',
-              metadata: {
-                userName: user.name || 'Unknown',
-                userEmail: user.email,
-                userImage: user.image || null,
-                loginTime: new Date().toISOString(),
-              }
-            })
-          })
-          
-          if (response.ok) {
-            console.log('✅ Login event stored successfully via client')
-          } else {
-            console.error('❌ Failed to store login event via client')
-          }
-        } catch (error) {
-          console.error('❌ Error storing login event:', error)
-        }
-      }
-
-      // Use a slight delay to ensure we don't store multiple times
-      const timeoutId = setTimeout(storeLoginEvent, 1000)
-      return () => clearTimeout(timeoutId)
-    }
-  }, [session, status])
+  // No longer track login events on client side - handled by NextAuth callbacks
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
 
-    setIsLoading(true)
+    // Store the user's query as a memory
     try {
-      // Store the user's query as a memory
       await fetch('/api/memories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,32 +36,18 @@ export default function WatchdogHero() {
           source: 'chat'
         })
       })
-
-      // Search for relevant memories
-      const response = await fetch(`/api/memories?q=${encodeURIComponent(input)}`)
-      const data = await response.json()
-      setMemories(data.memories || [])
-
-      console.log("User prompt:", input)
-      console.log("Found memories:", data.memories)
     } catch (error) {
-      console.error('Error processing query:', error)
+      console.error('Error storing query:', error)
     }
-    
+
+    // Navigate to search page with the query
+    router.push(`/search?q=${encodeURIComponent(input.trim())}`)
     setInput("")
-    setIsLoading(false)
   }
 
-  const handleQuickAction = async (action: string) => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/memories?q=${encodeURIComponent(action.toLowerCase())}&category=${action.toLowerCase().replace(' ', '')}`)
-      const data = await response.json()
-      setMemories(data.memories || [])
-    } catch (error) {
-      console.error('Error fetching memories:', error)
-    }
-    setIsLoading(false)
+  const handleQuickAction = (action: string) => {
+    // Navigate to search page with the action as query
+    router.push(`/search?q=${encodeURIComponent(action.toLowerCase())}`)
   }
 
   // Show loading screen while checking authentication
@@ -239,68 +184,8 @@ export default function WatchdogHero() {
               {label}
             </button>
           ))}
-          
-          {/* Debug button */}
-          {/* <button 
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/debug/login', { method: 'POST' })
-                const data = await response.json()
-                console.log('Debug response:', data)
-                if (data.success) {
-                  alert(`✅ Login event stored! Memory ID: ${data.memoryId}`)
-                } else {
-                  alert(`❌ Error: ${data.error}`)
-                }
-              } catch (error) {
-                console.error('Debug error:', error)
-                alert('❌ Debug request failed')
-              }
-            }}
-            disabled={isLoading}
-            className="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 backdrop-blur-md text-xs text-red-300 hover:text-red-200 transition pixel-bold disabled:opacity-50"
-          >
-            🐛 Test Login Storage
-          </button> */}
         </div>
       </motion.div>
-
-      {/* Memory results */}
-      {memories.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="relative z-10 w-full max-w-4xl mt-8"
-        >
-          <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10">
-              <h3 className="text-white pixel-bold text-sm">Found Memories ({memories.length})</h3>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {memories.map((memory, index) => (
-                <div key={memory.id} className="px-6 py-4 border-b border-white/5 last:border-b-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-white/90 text-xs pixel-light leading-relaxed">
-                        {memory.content}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-white/40 text-xs pixel-light">
-                          {memory.category}
-                        </span>
-                        <span className="text-white/30 text-xs pixel-light">
-                          {new Date(memory.timestamp).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Loading indicator */}
       {isLoading && (
