@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
     let memories
 
     if (query) {
-      // Search memories
-      memories = await weaviateService.searchMemories(
+      // Search memories with RAG
+      memories = await weaviateService.searchMemoriesWithRAG(
         session.user.email,
         query,
         limit,

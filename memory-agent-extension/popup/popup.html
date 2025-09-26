@@ -45,17 +45,41 @@
                 OPEN WATCHDOG CONSOLE
             </button>
             
+            <!-- Connection status -->
+            <div class="connection-status">
+                <div class="status-item">
+                    <span class="status-label">USER:</span>
+                    <span class="status-value" id="userEmail">CHECKING...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">CONNECTION:</span>
+                    <span class="status-value" id="connectionStatus">CONNECTING</span>
+                </div>
+            </div>
+
             <!-- Quick stats -->
             <div class="quick-stats">
                 <div class="stat-item">
-                    <span class="stat-number" id="pageCount">0</span>
-                    <span class="stat-label">PAGES TRACKED</span>
+                    <span class="stat-number" id="localMemories">0</span>
+                    <span class="stat-label">LOCAL MEMORIES</span>
                 </div>
                 <div class="stat-divider">|</div>
                 <div class="stat-item">
-                    <span class="stat-number" id="sessionCount">0</span>
-                    <span class="stat-label">SESSIONS</span>
+                    <span class="stat-number" id="visitedUrls">0</span>
+                    <span class="stat-label">UNIQUE URLS</span>
                 </div>
+            </div>
+
+            <!-- Sync status -->
+            <div class="sync-status">
+                <div class="sync-item">
+                    <span class="sync-label">UNSYNCED:</span>
+                    <span class="sync-number" id="unsyncedCount">0</span>
+                </div>
+                <button class="sync-btn" id="syncNow">
+                    <span>🌐</span>
+                    SYNC NOW
+                </button>
             </div>
             
             <!-- Quick actions -->

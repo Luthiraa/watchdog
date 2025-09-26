@@ -26,6 +26,12 @@ function initializeMemoryAgent() {
 
 function capturePageContent() {
   try {
+    // Skip if already processed this URL
+    if (window.watchdogProcessed) {
+      console.log('🐕 Watchdog: Page already processed, skipping');
+      return;
+    }
+    
     // Extract meaningful text content from the page
     const title = document.title || '';
     const metaDescription = getMetaDescription();
@@ -43,7 +49,7 @@ function capturePageContent() {
     
     const fullContent = contentParts.join('\n').slice(0, 2000);
     
-    if (fullContent.length > 10) {
+    if (fullContent.length > 20) {
       // Send content to background script
       chrome.runtime.sendMessage({
         type: "pageContent",
@@ -51,16 +57,33 @@ function capturePageContent() {
         metadata: {
           title,
           url: window.location.href,
-          headings,
+          headings: headings.slice(0, 10),
           links: links.slice(0, 10), // First 10 links
-          wordCount: fullContent.split(/\s+/).length
+          wordCount: fullContent.split(/\s+/).length,
+          domain: window.location.hostname,
+          capturedAt: new Date().toISOString()
+        }
+      }, (response) => {
+        if (response && response.success) {
+          console.log('🐕 Watchdog: Page content captured successfully');
+          window.watchdogProcessed = true;
+        } else if (response && response.reason === 'duplicate_url') {
+          console.log('🐕 Watchdog: URL already processed, marking as done');
+          window.watchdogProcessed = true;
+        } else {
+          console.log('🐕 Watchdog: Failed to capture content');
         }
       });
       
-      console.log('Page content captured and sent to background');
+      console.log('🐕 Watchdog: Capturing page content:', {
+        url: window.location.href,
+        title,
+        contentLength: fullContent.length,
+        wordCount: fullContent.split(/\s+/).length
+      });
     }
   } catch (error) {
-    console.error('Error capturing page content:', error);
+    console.error('❌ Watchdog: Error capturing page content:', error);
   }
 }
 
