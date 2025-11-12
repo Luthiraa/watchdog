@@ -4,16 +4,17 @@ import { weaviateService } from '@/lib/weaviate'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession()
+    const { id } = await params
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const success = await weaviateService.deleteMemory(params.id, session.user.email)
+    const success = await weaviateService.deleteMemory(id, session.user.email)
 
     if (success) {
       return NextResponse.json({ success: true })
