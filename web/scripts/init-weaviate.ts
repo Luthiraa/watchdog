@@ -70,7 +70,7 @@ async function initializeWeaviate() {
         .withClass({
           class: className,
           description: 'User-specific memories and embeddings',
-          vectorizer: 'none', // We'll add vectors manually via API
+          vectorizer: 'none',
           properties: [
             {
               name: 'userId',
@@ -88,7 +88,7 @@ async function initializeWeaviate() {
             },
             {
               name: 'timestamp',
-              dataType: ['text'],
+              dataType: ['date'],
               description: 'When this memory was created',
               indexFilterable: true,
               indexSearchable: false,
@@ -112,6 +112,27 @@ async function initializeWeaviate() {
               dataType: ['text'],
               description: 'Additional metadata as JSON string',
               indexFilterable: false,
+              indexSearchable: false,
+            },
+            {
+              name: 'url',
+              dataType: ['text'],
+              description: 'URL of the webpage or source',
+              indexFilterable: true,
+              indexSearchable: false,
+            },
+            {
+              name: 'title',
+              dataType: ['text'],
+              description: 'Title of the webpage or document',
+              indexFilterable: false,
+              indexSearchable: true,
+            },
+            {
+              name: 'domain',
+              dataType: ['text'],
+              description: 'Domain of the webpage',
+              indexFilterable: true,
               indexSearchable: false,
             },
           ],

@@ -58,12 +58,14 @@ export default function SearchPage() {
     try {
       const response = await fetch(`/api/memories?q=${encodeURIComponent(searchQuery)}`)
       if (!response.ok) {
-        throw new Error('Search failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Search failed with status ${response.status}`)
       }
       const data = await response.json()
       setResults(data.memories || [])
     } catch (err) {
-      setError('Failed to search memories. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to search memories. Please try again.'
+      setError(errorMessage)
       console.error('Search error:', err)
     } finally {
       setLoading(false)

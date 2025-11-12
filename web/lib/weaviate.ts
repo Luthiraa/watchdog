@@ -53,13 +53,7 @@ export class WeaviateService {
           .withClass({
             class: this.className,
             description: 'User-specific memories and embeddings',
-            vectorizer: 'text2vec-transformers',
-            moduleConfig: {
-              'text2vec-transformers': {
-                poolingStrategy: 'masked_mean',
-                model: 'sentence-transformers/all-MiniLM-L6-v2',
-              },
-            },
+            vectorizer: 'none',
             properties: [
               {
                 name: 'userId',
@@ -98,8 +92,8 @@ export class WeaviateService {
               },
               {
                 name: 'metadata',
-                dataType: ['object'],
-                description: 'Additional metadata as JSON',
+                dataType: ['text'],
+                description: 'Additional metadata as JSON string',
                 indexFilterable: false,
                 indexSearchable: false,
               },
@@ -243,43 +237,36 @@ export class WeaviateService {
 
       let result;
       
-      try {
-        // Try with nearText first (requires vectorization)
-        result = await client.graphql
-          .get()
-          .withClassName(this.className)
-          .withFields('userId content timestamp category source metadata url title domain _additional { id certainty score }')
-          .withWhere(whereFilter)
-          .withNearText({
-            concepts: [query],
-            distance: 0.7 // Adjust for similarity threshold
-          })
-          .withLimit(limit)
-          .do();
-      } catch (vectorError) {
-        console.log('📝 Vector search not available, falling back to text search...')
-        
-        // Fallback to text-based filtering
-        const textSearchFilter = {
-          operator: 'And' as const,
-          operands: [
-            whereFilter,
-            {
-              operator: 'Like' as const,
-              valueText: `*${query}*`,
-              path: ['content']
-            }
-          ]
-        };
+      // Use BM25 search (keyword-based) since we don't have a vectorizer
+      const textSearchFilter = {
+        operator: 'And' as const,
+        operands: [
+          whereFilter,
+          {
+            operator: 'Or' as const,
+            operands: [
+              {
+                path: ['content'],
+                operator: 'Like' as const,
+                valueText: `*${query}*`,
+              },
+              {
+                path: ['title'],
+                operator: 'Like' as const,
+                valueText: `*${query}*`,
+              }
+            ]
+          }
+        ]
+      };
 
-        result = await client.graphql
-          .get()
-          .withClassName(this.className)
-          .withFields('userId content timestamp category source metadata url title domain _additional { id }')
-          .withWhere(textSearchFilter)
-          .withLimit(limit)
-          .do();
-      }
+      result = await client.graphql
+        .get()
+        .withClassName(this.className)
+        .withFields('userId content timestamp category source metadata url title domain _additional { id }')
+        .withWhere(textSearchFilter)
+        .withLimit(limit)
+        .do();
 
       const memories = result.data?.Get?.[this.className] || [];
       console.log(`✅ Found ${memories.length} memories`);
@@ -341,7 +328,9 @@ export class WeaviateService {
         .withSort([{ path: ['timestamp'], order: 'desc' }])
         .do();
 
-      return result.data.Get[this.className].map((item: any) => ({
+      const memories = result.data?.Get?.[this.className] || [];
+      
+      return memories.map((item: any) => ({
         id: item._additional.id,
         userId: item.userId,
         content: item.content,
