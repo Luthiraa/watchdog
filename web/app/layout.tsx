@@ -4,7 +4,7 @@ import "./globals.css"
 import { Providers } from "./providers"
 
 export const metadata: Metadata = {
-  title: "Watchdog - Memory Agent",
+  title: "Watchdog",
   description: "Eyes everywhere. Memory for everything. Secure personal AI memory system.",
 }
 
