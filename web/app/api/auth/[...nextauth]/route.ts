@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       console.log('🔐 SignIn callback triggered:', { 
         userEmail: user.email, 
         provider: account?.provider,
@@ -45,10 +45,10 @@ export const authOptions: NextAuthOptions = {
       }
       return true
     },
-    async session({ session, token }) {
+    async session({ session }) {
       return session
     },
-    async jwt({ token, user }) {
+    async jwt({ token }) {
       return token
     },
   },

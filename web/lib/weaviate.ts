@@ -9,6 +9,46 @@ const client = weaviate.client({
   // No OpenAI API key needed for open-source models
 });
 
+type WhereFilter = {
+  operator: 'And' | 'Or' | 'Equal' | 'Like' | 'GreaterThan' | 'LessThan'
+  path?: string[]
+  valueText?: string
+  valueDate?: string
+  operands?: WhereFilter[]
+}
+
+interface WeaviateMemoryRecord {
+  _additional: {
+    id: string
+    certainty?: number
+    score?: number
+  }
+  userId: string
+  content: string
+  timestamp: string
+  category?: string
+  source?: string
+  metadata?: string
+  url?: string
+  title?: string
+  domain?: string
+}
+
+type GraphQLResponse<T> = {
+  data?: {
+    Get?: Record<string, T[]>
+  }
+}
+
+interface LoginUserInfo extends Record<string, unknown> {
+  email: string
+  name?: string | null
+  image?: string | null
+  provider?: string
+  userName?: string | null
+  userImage?: string | null
+}
+
 export interface UserMemory {
   id?: string;
   userId: string;
@@ -16,7 +56,7 @@ export interface UserMemory {
   timestamp: string;
   category?: string;
   source?: string;
-  metadata?: {
+  metadata?: (Record<string, unknown> & {
     url?: string;
     title?: string;
     pageTitle?: string;
@@ -33,8 +73,7 @@ export interface UserMemory {
     language?: string;
     certainty?: number;
     score?: number;
-    [key: string]: any;
-  };
+  });
   _ragScore?: number;
 }
 
@@ -214,7 +253,7 @@ export class WeaviateService {
     try {
       console.log('🔍 Searching memories for user:', userId, 'with query:', query)
 
-      let whereFilter: any = {
+      let whereFilter: WhereFilter = {
         path: ['userId'],
         operator: 'Equal',
         valueText: userId,
@@ -235,24 +274,22 @@ export class WeaviateService {
         };
       }
 
-      let result;
-      
       // Use BM25 search (keyword-based) since we don't have a vectorizer
-      const textSearchFilter = {
-        operator: 'And' as const,
+      const textSearchFilter: WhereFilter = {
+        operator: 'And',
         operands: [
           whereFilter,
           {
-            operator: 'Or' as const,
+            operator: 'Or',
             operands: [
               {
                 path: ['content'],
-                operator: 'Like' as const,
+                operator: 'Like',
                 valueText: `*${query}*`,
               },
               {
                 path: ['title'],
-                operator: 'Like' as const,
+                operator: 'Like',
                 valueText: `*${query}*`,
               }
             ]
@@ -260,7 +297,7 @@ export class WeaviateService {
         ]
       };
 
-      result = await client.graphql
+      const result = await client.graphql
         .get()
         .withClassName(this.className)
         .withFields('userId content timestamp category source metadata url title domain _additional { id }')
@@ -268,10 +305,12 @@ export class WeaviateService {
         .withLimit(limit)
         .do();
 
-      const memories = result.data?.Get?.[this.className] || [];
+      const typedResult = result as GraphQLResponse<WeaviateMemoryRecord>;
+      const rawMemories = typedResult.data?.Get?.[this.className] ?? [];
+      const memories = rawMemories as WeaviateMemoryRecord[];
       console.log(`✅ Found ${memories.length} memories`);
       
-      return memories.map((item: any) => ({
+      return memories.map((item) => ({
         id: item._additional.id,
         userId: item.userId,
         content: item.content,
@@ -299,7 +338,7 @@ export class WeaviateService {
     category?: string
   ): Promise<UserMemory[]> {
     try {
-      let whereFilter: any = {
+      let whereFilter: WhereFilter = {
         path: ['userId'],
         operator: 'Equal',
         valueText: userId,
@@ -328,9 +367,11 @@ export class WeaviateService {
         .withSort([{ path: ['timestamp'], order: 'desc' }])
         .do();
 
-      const memories = result.data?.Get?.[this.className] || [];
+      const typedResult = result as GraphQLResponse<WeaviateMemoryRecord>;
+      const rawMemories = typedResult.data?.Get?.[this.className] ?? [];
+      const memories = rawMemories as WeaviateMemoryRecord[];
       
-      return memories.map((item: any) => ({
+      return memories.map((item) => ({
         id: item._additional.id,
         userId: item.userId,
         content: item.content,
@@ -350,7 +391,7 @@ export class WeaviateService {
     }
   }
 
-  async updateOrCreateLoginSession(userId: string, userInfo: any): Promise<string> {
+  async updateOrCreateLoginSession(userId: string, userInfo: LoginUserInfo): Promise<string> {
     try {
       // First check for existing login session within the last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -383,9 +424,10 @@ export class WeaviateService {
         .withSort([{ path: ['timestamp'], order: 'desc' }])
         .do();
 
-      const sessions = existingSession.data.Get[this.className];
+      const typedSession = existingSession as GraphQLResponse<WeaviateMemoryRecord>;
+      const sessions = typedSession.data?.Get?.[this.className] ?? [];
       
-      if (sessions && sessions.length > 0) {
+      if (sessions.length > 0) {
         // Update existing session
         const sessionId = sessions[0]._additional.id;
         const currentTime = new Date().toISOString();

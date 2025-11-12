@@ -1,11 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { ArrowLeft, Search, Calendar, Globe, FileText, ExternalLink, Star } from 'lucide-react'
+
+interface MemoryMetadata extends Record<string, unknown> {
+  url?: string
+  title?: string
+  domain?: string
+  certainty?: number
+  score?: number
+  favicon?: string
+  excerpt?: string
+  description?: string
+  author?: string
+  publishDate?: string
+  wordCount?: number
+  readingTime?: number
+  language?: string
+  tags?: string[]
+}
 
 interface Memory {
   id: string
@@ -14,18 +31,25 @@ interface Memory {
   timestamp: string
   category: string
   source: string
-  metadata?: {
-    url?: string
-    title?: string
-    domain?: string
-    certainty?: number
-    score?: number
-    [key: string]: any
-  }
+  metadata?: MemoryMetadata
   _ragScore?: number
 }
 
 export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-black">
+          <p className="text-white pixel-light text-sm">Loading search...</p>
+        </main>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
+  )
+}
+
+function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -200,13 +224,13 @@ export default function SearchPage() {
             </div>
           ) : results.length === 0 && query ? (
             <div className="text-center py-12">
-              <div className="text-white/70 pixel-light">No memories found for "{query}"</div>
+              <div className="text-white/70 pixel-light">No memories found for &quot;{query}&quot;</div>
             </div>
           ) : results.length > 0 ? (
             <>
               <div className="mb-6">
                 <h2 className="text-white pixel-bold text-lg">
-                  Found {results.length} memories for "{searchParams.get('q')}"
+                  Found {results.length} memories for &quot;{searchParams.get('q')}&quot;
                 </h2>
               </div>
               
@@ -260,12 +284,15 @@ export default function SearchPage() {
                               <>
                                 <div className="flex items-center gap-2 mb-3">
                                   {memory.metadata?.favicon ? (
-                                    <img 
-                                      src={memory.metadata.favicon} 
-                                      alt="Site favicon" 
-                                      className="w-5 h-5" 
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
+                                    <Image
+                                      src={memory.metadata.favicon}
+                                      alt="Site favicon"
+                                      width={20}
+                                      height={20}
+                                      className="w-5 h-5"
+                                      unoptimized
+                                      onError={(event) => {
+                                        event.currentTarget.style.display = 'none'
                                       }}
                                     />
                                   ) : (

@@ -25,6 +25,7 @@ export default function WatchdogHero() {
     e.preventDefault()
     if (!input.trim()) return
 
+    setIsLoading(true)
     // Store the user's query as a memory
     try {
       await fetch('/api/memories', {
@@ -43,9 +44,11 @@ export default function WatchdogHero() {
     // Navigate to search page with the query
     router.push(`/search?q=${encodeURIComponent(input.trim())}`)
     setInput("")
+    setIsLoading(false)
   }
 
   const handleQuickAction = (action: string) => {
+    setIsLoading(true)
     // Navigate to search page with the action as query
     router.push(`/search?q=${encodeURIComponent(action.toLowerCase())}`)
   }

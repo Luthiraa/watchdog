@@ -3,11 +3,26 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { signIn, getProviders } from "next-auth/react"
-import { useEffect, useState } from "react"
+import type { ClientSafeProvider } from "next-auth/react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 export default function SignIn() {
-  const [providers, setProviders] = useState<any>(null)
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-black">
+          <p className="text-white pixel-light text-sm">Loading sign in...</p>
+        </main>
+      }
+    >
+      <SignInContent />
+    </Suspense>
+  )
+}
+
+function SignInContent() {
+  const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null)
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
 
@@ -92,7 +107,7 @@ export default function SignIn() {
       >
         <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden p-6">
           <div className="space-y-4">
-            {providers && Object.values(providers).map((provider: any) => (
+            {providers && Object.values(providers).map((provider) => (
               <button
                 key={provider.name}
                 onClick={() => signIn(provider.id, { callbackUrl: '/' })}
@@ -115,7 +130,7 @@ export default function SignIn() {
           {/* Security notice */}
           <div className="mt-6 pt-4 border-t border-white/10">
             <p className="text-white/50 text-xs pixel-light text-center leading-relaxed">
-              Your data is encrypted and stored securely. Each user's memories are completely isolated and accessible only to them.
+              Your data is encrypted and stored securely. Each user&apos;s memories are completely isolated and accessible only to them.
             </p>
           </div>
         </div>
