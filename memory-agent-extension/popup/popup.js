@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load and display stats on popup open
     loadStats();
+    loadLocalMemories();
     
     // Refresh stats every 3 seconds while popup is open
     const statsInterval = setInterval(loadStats, 3000);
@@ -107,6 +108,80 @@ async function loadStats() {
     } catch (error) {
         console.error('Error loading stats:', error);
     }
+}
+
+async function loadLocalMemories() {
+    try {
+        // Get memories from local storage
+        const result = await chrome.storage.local.get(['watchdog_memories']);
+        const memories = result.watchdog_memories || [];
+        
+        console.log('💾 Local memories loaded:', memories.length);
+        
+        // Create or get the memories container
+        let memoriesContainer = document.getElementById('localMemoriesContainer');
+        if (!memoriesContainer) {
+            // Create the container if it doesn't exist
+            memoriesContainer = document.createElement('div');
+            memoriesContainer.id = 'localMemoriesContainer';
+            memoriesContainer.className = 'local-memories-section';
+            
+            // Insert after the quick-actions section
+            const quickActions = document.querySelector('.quick-actions');
+            if (quickActions && quickActions.parentNode) {
+                quickActions.parentNode.insertBefore(memoriesContainer, quickActions.nextSibling);
+            }
+        }
+        
+        // Display memories
+        if (memories.length > 0) {
+            let html = '<div class="memories-header">📚 LOCAL MEMORIES</div>';
+            html += '<div class="memories-list">';
+            
+            // Show most recent 5 memories
+            memories.slice(0, 5).forEach((memory, index) => {
+                const timestamp = new Date(memory.timestamp);
+                const timeAgo = getTimeAgo(timestamp);
+                const title = memory.metadata?.title || 'Untitled';
+                const content = memory.content?.substring(0, 100) || 'No content';
+                const synced = memory.synced ? '✅' : '⏳';
+                
+                html += `
+                    <div class="memory-item">
+                        <div class="memory-header">
+                            <span class="memory-sync-status">${synced}</span>
+                            <span class="memory-title">${title}</span>
+                        </div>
+                        <div class="memory-content">${content}${memory.content?.length > 100 ? '...' : ''}</div>
+                        <div class="memory-meta">${timeAgo}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            memoriesContainer.innerHTML = html;
+            memoriesContainer.style.display = 'block';
+        } else {
+            memoriesContainer.innerHTML = '<div class="memories-header">📚 NO LOCAL MEMORIES YET</div>';
+            memoriesContainer.style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading local memories:', error);
+    }
+}
+
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
 }
 
 function updateStatsDisplay(stats) {
