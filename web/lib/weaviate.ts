@@ -1,13 +1,36 @@
 import weaviate from 'weaviate-ts-client';
 
-const client = weaviate.client({
-  scheme: 'https',
-  host: process.env.WEAVIATE_HOST!, // Your Weaviate cluster endpoint
-  apiKey: {
-    apiKey: process.env.WEAVIATE_API_KEY!,
+type WeaviateClient = ReturnType<typeof weaviate.client>
+
+let cachedClient: WeaviateClient | null = null
+
+const getClient = (): WeaviateClient => {
+  const host = process.env.WEAVIATE_HOST
+  const apiKey = process.env.WEAVIATE_API_KEY
+
+  if (!host || !apiKey) {
+    throw new Error('Missing Weaviate configuration: set WEAVIATE_HOST and WEAVIATE_API_KEY')
+  }
+
+  if (!cachedClient) {
+    cachedClient = weaviate.client({
+      scheme: 'https',
+      host,
+      apiKey: { apiKey },
+    })
+  }
+
+  return cachedClient
+}
+
+// Lazy proxy so importing this module during build does not require env vars
+const client: WeaviateClient = new Proxy({} as WeaviateClient, {
+  get(_target, prop, receiver) {
+    const actual = getClient()
+    const value = Reflect.get(actual, prop, receiver)
+    return typeof value === 'function' ? value.bind(actual) : value
   },
-  // No OpenAI API key needed for open-source models
-});
+})
 
 type WhereFilter = {
   operator: 'And' | 'Or' | 'Equal' | 'Like' | 'GreaterThan' | 'LessThan'
